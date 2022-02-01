@@ -1,0 +1,17 @@
+[package]
+name = "kids_coding_class"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-files = "0.5.0"
+actix-web = { version = "3"}
+braintree = { version="0.0.6", path="../braintree-rs" }
+serde = { version = "1.0", features = ["derive", "rc"]}
+serde_json = "1.0"
+url = { version = "2", features = ["serde"] }
+log = "0.4.0"
+env_logger = "0.8.4"
+
