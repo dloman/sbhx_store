@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 actix-files = "0.5.0"
 actix-web = { version = "3"}
-braintree = { version="0.0.6", path="../braintree-rs" }
+braintree = { version="0.0.6", git="https://github.com/dloman/braintree-rs" }
 serde = { version = "1.0", features = ["derive", "rc"]}
 serde_json = "1.0"
 url = { version = "2", features = ["serde"] }
