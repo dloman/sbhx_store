@@ -1,5 +1,7 @@
 use actix_web::{web, App, HttpServer, HttpResponse};
 use braintree::{Address, Braintree, CreditCard, Customer, Environment};
+use std::fs::File;
+use std::io::BufReader;
 use log::{info};
 use serde::{Serialize, Deserialize};
 use std::sync::{Mutex};
@@ -17,6 +19,23 @@ pub struct Signup {
     pub course_type : String,
 }
 
+#[derive(Deserialize,Debug, Serialize)]
+pub struct Availability {
+    pub a : i8,
+    pub b : i8,
+    pub c : i8,
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub fn get_availible(available: i8) -> String {
+    if available >= 1 {
+        return format!("<span class=\"d-block g-color-danger g-font-size-16\">{} / 16 Spaces Available</span>
+        <a href=\"classc\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>", available);
+    }
+    "<span class=\"d-block g-color-danger g-font-size-16\">Sold Out</span>".to_string()
+}
+
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
 pub async fn thanks() -> HttpResponse {
@@ -27,7 +46,9 @@ pub async fn thanks() -> HttpResponse {
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn signup(signup : web::Form<Signup>, braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
+pub async fn signup(
+    signup : web::Form<Signup>,
+    braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
     print!("request = {:#?}\n", signup);
 
     let braintree = &*(braintree.lock().unwrap());
@@ -75,15 +96,36 @@ pub async fn signup(signup : web::Form<Signup>, braintree : web::Data<Mutex<Brai
         Err(err) => println!("\nError: {}\n", err),
     }
 
+    let file = File::open("available.json").expect("valid available.json is required");
+    let reader = BufReader::new(file);
+    let mut available :Availability = serde_json::from_reader(reader).expect("failure reading available.json");
+
+    match signup.course_type.as_str() {
+        "Class A" => available.a -= 1,
+        "Class B" => available.b -= 1,
+        "Class C" => available.c -= 1,
+        _ => print!("Error: bad course type\n",),
+    }
+
+    serde_json::to_writer(&File::create("available.json").expect("unable to open file"), &available).expect("unable to write available.json");
+
     thanks().await
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
 pub async fn index() -> HttpResponse {
+    let file = File::open("available.json").expect("valid available.json is required");
+    let reader = BufReader::new(file);
+    let available :Availability = serde_json::from_reader(reader).expect("failure reading available.json");
+
+    print!("wtf {:?}\n ", available);
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/index.html"))
+        .body(include_str!("../static/index.html")
+              .replace("A_REMAIN", get_availible(available.a).as_str())
+              .replace("B_REMAIN", get_availible(available.b).as_str())
+              .replace("C_REMAIN", get_availible(available.c).as_str()))
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -139,6 +181,7 @@ async fn main() -> std::io::Result<()> {
                     std::env::var("PUBLIC_KEY").expect("environment variable PUBLIC_KEY is not defined"),
                     std::env::var("PRIVATE_KEY").expect("environment variable PRIVATE_KEY is not defined"),
                     )));
+
         App::new()
             .app_data(braintree)
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
