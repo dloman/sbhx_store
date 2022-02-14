@@ -28,10 +28,10 @@ pub struct Availability {
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub fn get_availible(available: i8) -> String {
+pub fn get_availible(available: i8, class: char) -> String {
     if available >= 1 {
         return format!("<span class=\"d-block g-color-danger g-font-size-16\">{} / 16 Spaces Available</span>
-        <a href=\"classc\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>", available);
+        <a href=\"class{}\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>", available, class);
     }
     "<span class=\"d-block g-color-danger g-font-size-16\">Sold Out</span>".to_string()
 }
@@ -123,9 +123,9 @@ pub async fn index() -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(include_str!("../static/index.html")
-              .replace("A_REMAIN", get_availible(available.a).as_str())
-              .replace("B_REMAIN", get_availible(available.b).as_str())
-              .replace("C_REMAIN", get_availible(available.c).as_str()))
+              .replace("A_REMAIN", get_availible(available.a, 'a').as_str())
+              .replace("B_REMAIN", get_availible(available.b, 'b').as_str())
+              .replace("C_REMAIN", get_availible(available.c, 'c').as_str()))
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ pub async fn form(braintree : web::Data<Mutex<Braintree>>, course_type : &str, p
               .replace("PRICE", format!("{}", price).as_str())
               .replace("DISCOUNT", format!("{}", discount).as_str())
               .replace("TOTAL", format!("{}", price - discount).as_str())
-              .replace("CLIENT_TOKEN_FROM_SERVER", braintree.client_token().generate(Default::default()).unwrap().value.as_str()))
+              .replace("CLIENT_TOKEN_FROM_SERVER", braintree.client_token().generate(Default::default()).expect("unable to get client token").value.as_str()))
 }
 
 //----------------------------------------------------------------------------------------------------
