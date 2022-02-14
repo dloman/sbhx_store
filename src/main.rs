@@ -176,7 +176,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         let merchant_id = std::env::var("MERCHANT_ID").expect("environment variable MERCHANT_ID is not defined");
         let braintree = web::Data::new(Mutex::new(Braintree::new(
-                    Environment::Sandbox,
+                    Environment::from_str(&std::env::var("ENVIRONMENT").expect("environment variable ENVIRONMENT is not defined")).unwrap(),
                     merchant_id,
                     std::env::var("PUBLIC_KEY").expect("environment variable PUBLIC_KEY is not defined"),
                     std::env::var("PRIVATE_KEY").expect("environment variable PRIVATE_KEY is not defined"),
