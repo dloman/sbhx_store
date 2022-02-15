@@ -1,9 +1,10 @@
 use actix_web::{web, App, HttpServer, HttpResponse};
 use braintree::{Address, Braintree, CreditCard, Customer, Environment};
-use std::fs::File;
-use std::io::BufReader;
 use log::{info};
 use serde::{Serialize, Deserialize};
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::BufReader;
 use std::sync::{Mutex};
 
 #[derive(Deserialize,Debug, Serialize)]
@@ -19,21 +20,50 @@ pub struct Signup {
     pub course_type : String,
 }
 
-#[derive(Deserialize,Debug, Serialize)]
-pub struct Availability {
-    pub a : i8,
-    pub b : i8,
-    pub c : i8,
+#[derive(Deserialize,Debug, Serialize, Clone)]
+pub struct Item {
+    pub number_of_items : Option<i32>,
+    pub price : f32,
+    pub discount : f32,
+    pub name : String,
+    pub formname : String,
+    pub image : String,
 }
 
-//----------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------
-pub fn get_availible(available: i8, class: char) -> String {
-    if available >= 1 {
-        return format!("<span class=\"d-block g-color-danger g-font-size-16\">{} / 16 Spaces Available</span>
-        <a href=\"class{}\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>", available, class);
+//------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------
+impl Item {
+
+    //--------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------
+    pub fn get_button(&self) -> String {
+        match self.number_of_items {
+            Some(number_of_items) => {
+                if number_of_items >= 1 {
+                    return format!(
+                        "<span class=\"d-block g-color-danger g-font-size-16\">{} / 16 Spaces Available</span>
+                         <a href=\"{}\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>",
+                        number_of_items,
+                        self.formname);
+                }
+                "<span class=\"d-block g-color-danger g-font-size-16\">Sold Out</span>".to_string()
+            },
+            None => "<a href=\"{}\" class=\"w-100 btn btn-lg btn-success\" role=\"button\">Buy Now</a>".to_string(),
+        }
     }
-    "<span class=\"d-block g-color-danger g-font-size-16\">Sold Out</span>".to_string()
+
+    //--------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------
+    pub fn get_entry(&self) -> String {
+
+          format!("<div class=\"col-md-6 col-lg-4 g-mb-30\"><article class=\"u-shadow-v18 g-bg-white text-center rounded g-px-20 g-py-40 g-mb-5\">
+            <img class=\"d-inline-block img-fluid mb-4\"  src=\"{}\" Width=100 Height=100 alt=\"Image Description\">
+            <h4 class=\"h5 g-color-black g-font-weight-600 g-mb-10\">{}</h4>
+            <p>Dates: July 11-15 8:00AM - 11:00am</p>
+            <span class=\"d-block g-color-primary g-font-size-16\">$500.00</span>
+            {}
+          </article></div>", self.image, self.name, self.get_button())
+    }
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -48,6 +78,7 @@ pub async fn thanks() -> HttpResponse {
 //----------------------------------------------------------------------------------------------------
 pub async fn signup(
     signup : web::Form<Signup>,
+    inventory : web::Data<Mutex<BTreeMap<String, Item>>>,
     braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
     print!("request = {:#?}\n", signup);
 
@@ -96,67 +127,79 @@ pub async fn signup(
         Err(err) => println!("\nError: {}\n", err),
     }
 
-    let file = File::open("available.json").expect("valid available.json is required");
-    let reader = BufReader::new(file);
-    let mut available :Availability = serde_json::from_reader(reader).expect("failure reading available.json");
+    let inventory = &mut *(inventory.lock().unwrap());
 
-    match signup.course_type.as_str() {
-        "Class A" => available.a -= 1,
-        "Class B" => available.b -= 1,
-        "Class C" => available.c -= 1,
-        _ => print!("Error: bad course type\n",),
+    match inventory.get_mut(&signup.course_type) {
+        Some(item) => {
+            match &mut item.number_of_items {
+                Some(number_of_items) => *number_of_items -= 1,
+                None => (),
+            }
+        },
+        None => print!("Error: bad course type {}\n", signup.course_type),
     }
 
-    serde_json::to_writer(&File::create("available.json").expect("unable to open file"), &available).expect("unable to write available.json");
+    print!("inventory after sale {:#?}\n", inventory);
+    serde_json::to_writer(&File::create("inventory.json").expect("unable to open file"), &inventory).expect("unable to write inventory.json");
 
     thanks().await
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn index() -> HttpResponse {
-    let file = File::open("available.json").expect("valid available.json is required");
+pub async fn index(_inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+    let index = include_str!("../static/index.html");
+    //let inventory = &*(inventory.lock().unwrap()); //i dont know why this isnt working
+    let file = File::open("inventory.json").expect("valid inventory.json is required");
     let reader = BufReader::new(file);
-    let available :Availability = serde_json::from_reader(reader).expect("failure reading available.json");
+    let inventory : BTreeMap<String, Item> = serde_json::from_reader(reader).expect("failure reading inventory.json");
+    print!("inventory in index {:#?}\n", inventory);
+    let mut items = String::new();
+    for (_key, item) in inventory {
+        items += item.get_entry().as_str();
+    }
 
-    print!("wtf {:?}\n ", available);
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/index.html")
-              .replace("A_REMAIN", get_availible(available.a, 'a').as_str())
-              .replace("B_REMAIN", get_availible(available.b, 'b').as_str())
-              .replace("C_REMAIN", get_availible(available.c, 'c').as_str()))
+    let index = index.replace("ITEMS", &items);
+
+    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(index)
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn classa(braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
-    form(braintree, "Class A", 550, 50).await
+pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, item : &Item) -> HttpResponse {
+    form(braintree, &item).await
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn classb(braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
-    form(braintree, "Class B", 550, 50).await
+pub async fn classa(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+    let inventory = &*(inventory.lock().unwrap());
+    form(braintree, inventory.get("classa").unwrap()).await
+}
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub async fn classb(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+    let inventory = &*(inventory.lock().unwrap());
+    form(braintree, inventory.get("classb").unwrap()).await
+}
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub async fn classc(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+    let inventory = &*(inventory.lock().unwrap());
+    form(braintree, inventory.get("classc").unwrap()).await
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn classc(braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
-    form(braintree, "Class C", 550, 50).await
-}
-
-//----------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------
-pub async fn form(braintree : web::Data<Mutex<Braintree>>, course_type : &str, price : i16, discount : i16) -> HttpResponse {
+pub async fn form(braintree : web::Data<Mutex<Braintree>>, item : &Item) -> HttpResponse {
     let braintree = &*(braintree.lock().unwrap());
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(include_str!("../static/form.html")
-              .replace("COURSETYPE", course_type)
-              .replace("PRICE", format!("{}", price).as_str())
-              .replace("DISCOUNT", format!("{}", discount).as_str())
-              .replace("TOTAL", format!("{}", price - discount).as_str())
+              .replace("COURSETYPE", &item.formname)
+              .replace("PRICE", format!("{}", item.price + item.discount).as_str())
+              .replace("DISCOUNT", format!("{}", &item.discount).as_str())
+              .replace("TOTAL", format!("{}", &item.price).as_str())
               .replace("CLIENT_TOKEN_FROM_SERVER", braintree.client_token().generate(Default::default()).expect("unable to get client token").value.as_str()))
 }
 
@@ -182,16 +225,28 @@ async fn main() -> std::io::Result<()> {
                     std::env::var("PRIVATE_KEY").expect("environment variable PRIVATE_KEY is not defined"),
                     )));
 
-        App::new()
+        let file = File::open("inventory.json").expect("valid inventory.json is required");
+        let reader = BufReader::new(file);
+        let inventory : BTreeMap<String, Item> = serde_json::from_reader(reader).expect("failure reading inventory.json");
+        let inventory = web::Data::new(Mutex::new(inventory.clone()));
+
+        let app = App::new()
             .app_data(braintree)
+            .app_data(inventory.clone())
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
             .route("/", web::get().to(index))
             .route("/thanks", web::get().to(thanks))
             .route("/signup", web::post().to(signup))
-            .route("/classa", web::get().to(classa))
-            .route("/classb", web::get().to(classb))
-            .route("/classc", web::get().to(classc))
-            .route("/", web::post().to(submit))
+            .route("/", web::post().to(submit));
+
+        let app = app.route("/classa", web::get().to(classa));
+        let app = app.route("/classb", web::get().to(classb));
+        let app = app.route("/classc", web::get().to(classc));
+        //for (_, item) in inventory {
+        //    app.route(format!("/{}", item.formname).as_str(), web::get().to(
+        //            move |braintree, inventory| item_page(braintree, inventory, item)));
+        //}
+        app
     })
     .bind("0.0.0.0:7777")?
         .run()
