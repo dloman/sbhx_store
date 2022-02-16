@@ -76,11 +76,40 @@ pub async fn thanks() -> HttpResponse {
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
+pub async fn error() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(include_str!("../static/error.html"))
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 pub async fn signup(
     signup : web::Form<Signup>,
     inventory : web::Data<Mutex<BTreeMap<String, Item>>>,
     braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
     print!("request = {:#?}\n", signup);
+
+    let inventory = &mut *(inventory.lock().unwrap());
+
+
+    let item = inventory.get(&signup.course_type);
+
+    if item.is_none() {
+        return error().await;
+    }
+
+    //dont charge if no inventory available
+    let item = item.unwrap();
+
+    match item.number_of_items {
+        Some(number_of_items) => {
+            if number_of_items < 1 {
+                return error().await;
+            }
+        },
+        None => (),
+    }
 
     let braintree = &*(braintree.lock().unwrap());
 
@@ -108,7 +137,7 @@ pub async fn signup(
         Ok(customer) => {
             print!("customer {:#?}", customer);
             let transaction = braintree.transaction().create(braintree::transaction::Request{
-                amount: "500.00".to_string(),
+                amount: format!("{:.2}", item.price),
                 payment_method_token: customer.credit_card.unwrap().token,
                 options: Some(braintree::transaction::Options{
                     submit_for_settlement: Some(true),
@@ -126,8 +155,6 @@ pub async fn signup(
         },
         Err(err) => println!("\nError: {}\n", err),
     }
-
-    let inventory = &mut *(inventory.lock().unwrap());
 
     match inventory.get_mut(&signup.course_type) {
         Some(item) => {
@@ -166,27 +193,9 @@ pub async fn index(_inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> Htt
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, item : &Item) -> HttpResponse {
-    form(braintree, &item).await
-}
-
-//----------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------
-pub async fn classa(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>, formname : String) -> HttpResponse {
     let inventory = &*(inventory.lock().unwrap());
-    form(braintree, inventory.get("classa").unwrap()).await
-}
-//----------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------
-pub async fn classb(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
-    let inventory = &*(inventory.lock().unwrap());
-    form(braintree, inventory.get("classb").unwrap()).await
-}
-//----------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------
-pub async fn classc(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
-    let inventory = &*(inventory.lock().unwrap());
-    form(braintree, inventory.get("classc").unwrap()).await
+    form(braintree, inventory.get(&formname).unwrap()).await
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -228,24 +237,21 @@ async fn main() -> std::io::Result<()> {
         let file = File::open("inventory.json").expect("valid inventory.json is required");
         let reader = BufReader::new(file);
         let inventory : BTreeMap<String, Item> = serde_json::from_reader(reader).expect("failure reading inventory.json");
-        let inventory = web::Data::new(Mutex::new(inventory.clone()));
 
-        let app = App::new()
+        let mut app = App::new()
             .app_data(braintree)
-            .app_data(inventory.clone())
+            .app_data(web::Data::new(Mutex::new(inventory.clone())))
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
             .route("/", web::get().to(index))
             .route("/thanks", web::get().to(thanks))
+            .route("/error", web::get().to(error))
             .route("/signup", web::post().to(signup))
             .route("/", web::post().to(submit));
 
-        let app = app.route("/classa", web::get().to(classa));
-        let app = app.route("/classb", web::get().to(classb));
-        let app = app.route("/classc", web::get().to(classc));
-        //for (_, item) in inventory {
-        //    app.route(format!("/{}", item.formname).as_str(), web::get().to(
-        //            move |braintree, inventory| item_page(braintree, inventory, item)));
-        //}
+        for (_, item) in inventory {
+            app = app.route(format!("/{}", item.formname).as_str(), web::get().to(
+                    move |braintree, inventory| item_page(braintree, inventory, item.formname.clone())));
+        }
         app
     })
     .bind("0.0.0.0:7777")?
