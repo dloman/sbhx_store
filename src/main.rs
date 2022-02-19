@@ -60,6 +60,7 @@ impl Item {
           format!("<div class=\"col-md-6 col-lg-4 g-mb-30\"><article class=\"u-shadow-v18 g-bg-white text-center rounded g-px-20 g-py-40 g-mb-5\">
             <img class=\"d-inline-block img-fluid mb-4\"  src=\"{}\" Width=100 Height=100 alt=\"Image Description\">
             <h4 class=\"h5 g-color-black g-font-weight-600 g-mb-10\">{}</h4>
+            <p>In Person at SBHX: 5782 Thornwood Dr, Goleta, CA 93117</p>
             <p>Dates: {}</p>
             <span class=\"d-block g-color-primary g-font-size-16\">${:.2}</span>
             {}
