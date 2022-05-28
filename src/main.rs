@@ -20,7 +20,7 @@ pub struct Signup {
     pub course_type : String,
 }
 
-#[derive(Deserialize,Debug, Serialize, Clone)]
+#[derive(Deserialize,Debug, Serialize, Clone, Default)]
 pub struct Item {
     pub number_of_items : Option<i32>,
     pub price : f32,
@@ -29,6 +29,12 @@ pub struct Item {
     pub formname : String,
     pub image : String,
     pub dates : String,
+}
+
+#[derive(Deserialize,Debug, Serialize)]
+pub struct Quote {
+    pub price : f32,
+    pub name : String,
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -216,6 +222,19 @@ pub async fn form(braintree : web::Data<Mutex<Braintree>>, item : &Item) -> Http
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
+pub async fn quote(braintree : web::Data<Mutex<Braintree>>, quote : web::Query<Quote>) -> HttpResponse {
+    form(
+        braintree,
+        &Item{
+            formname: quote.name.clone(),
+            price: quote.price,
+            discount: 0.0,
+            ..Default::default()
+        }).await
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 pub async fn submit(json : web::Json<serde_json::Value>) -> HttpResponse {
     HttpResponse::Ok().body(format!("submit: {:?}", &json))
 }
@@ -247,6 +266,7 @@ async fn main() -> std::io::Result<()> {
             .route("/thanks", web::get().to(thanks))
             .route("/error", web::get().to(error))
             .route("/signup", web::post().to(signup))
+            .route("/quote", web::get().to(quote))
             .route("/", web::post().to(submit));
 
         for (_, item) in inventory {
