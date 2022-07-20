@@ -182,21 +182,75 @@ pub async fn signup(
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn index(_inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
-    let index = include_str!("../static/index.html");
+pub async fn fundraise()-> HttpResponse {
+    let fundraise = include_str!("../static/fundraise.html");
+    //let inventory = &*(inventory.lock().unwrap()); //i dont know why this isnt working
+    let file = File::open("goal.json").expect("valid inventory.json is required");
+    let reader = BufReader::new(file);
+    let inventory : BTreeMap<String, Item> = serde_json::from_reader(reader).expect("failure reading inventory.json");
+
+    let fundraise = fundraise.replace("DONATION_BOXES", &items);
+
+    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(fundraise)
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub fn get_dontation_box() -> String
+{
+    format!("
+    <div id=\"@donation.Key\" class=\"donation-wrap\" data-url=\"/donations/donation.Url\">
+        <div style=\"display: flex; flex-flow: row wrap; justify-content: space-around;\">
+            <div class=\"name\">@donation.Name</div>
+            <div class=\"goal\">@donation.Goal.ToString(\"C0\")</div>
+        </div>
+        <div class=\"glass\">
+            <div class=\"progress\" style=\"width: 10\"></div>
+        </div>
+        <div style=\"clear: both; height: 0;\">&nbsp;</div>
+        <div style=\"display: flex; flex-flow: row wrap; justify-content: space-around;\">
+            <div class=\"goal-stat\">
+                <span class=\"goal-number\">
+                    <div class=\"funded\">35</div>
+                </span>
+                <span class=\"goal-label\">Funded</span>
+            </div>
+            <div class=\"goal-stat\">
+                <span class=\"goal-number\">
+                    <div class=\"raised\">55</div>
+                </span>
+                <span class=\"goal-label\">Raised</span>
+            </div>
+            <div class=\"goal-stat\">
+                <span class=\"goal-number trolls\">@donation.Trolls</span>
+                <span class=\"goal-label\">trolls have spammed Swiss</span>
+                <span class=\"goal-number\">
+                    <div class=\"notifications\">@donation.Notifications</div>
+                </span>
+                <span class=\"goal-label\">times</span>
+            </div>
+        </div>
+        <div class=\"goal-footer\"><small>Click to Donate</small></div>
+    </div>");
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub async fn store(_inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+    let store = include_str!("../static/store.html");
     //let inventory = &*(inventory.lock().unwrap()); //i dont know why this isnt working
     let file = File::open("inventory.json").expect("valid inventory.json is required");
     let reader = BufReader::new(file);
     let inventory : BTreeMap<String, Item> = serde_json::from_reader(reader).expect("failure reading inventory.json");
-    print!("inventory in index {:#?}\n", inventory);
+    print!("inventory in store {:#?}\n", inventory);
     let mut items = String::new();
     for (_key, item) in inventory {
         items += item.get_entry().as_str();
     }
 
-    let index = index.replace("ITEMS", &items);
+    let store = store.replace("ITEMS", &items);
 
-    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(index)
+    HttpResponse::Ok().content_type("text/html; charset=utf-8").body(store)
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -262,7 +316,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(braintree)
             .app_data(web::Data::new(Mutex::new(inventory.clone())))
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
-            .route("/", web::get().to(index))
+            .route("/", web::get().to(fundraise))
+            .route("/store", web::get().to(store))
             .route("/thanks", web::get().to(thanks))
             .route("/error", web::get().to(error))
             .route("/signup", web::post().to(signup))
