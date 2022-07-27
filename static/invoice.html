@@ -5,8 +5,8 @@
       <link rel = "icon" href ='../assets/favicon.ico' type = "image/x-icon">
       <div class="d-flex flex-column flex-md-row align-items-center pb-3 mb-4 border-bottom">
         <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
-          <img class="d-block mx-auto mb-8" src="../assets/images/sbhx.png">
-          <span class="fs-4">NAME Donation</span>
+          <img class="d-block mx-auto mb-8" src="../assets/images/sbhx.png" width=50 height=50>
+          <span class="fs-4"> SBHX Invoice Checkout Invoice #INVOICE_ID</span>
         </a>
       </div>
       <meta charset="utf-8">
@@ -38,33 +38,52 @@
         <main>
           <div class="py-5 text-center">
             <img class="d-block mx-auto mb-4" src="../assets/images/sbhx.png" alt="">
-            <h2>Donation to NAME</h2>
-            <p class="lead">Please enter required information to donate to the SBHX fundraiser for DESCRIPTION.</p>
+            <h2>SBHX Invoice Checkout</h2>
+            <p class="lead">Please enter required information.</p>
           </div>
 
           <div class="row g-5">
+            <div class="col-md-5 col-lg-4 order-md-last">
+              <h4 class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-secondary">Your cart</span>
+              </h4>
+              <ul class="list-group mb-3">
+                <li class="list-group-item d-flex justify-content-between lh-sm">
+                  <div>
+                    <h6 class="my-0">Product name</h6>
+                    <small class="text-muted">Invoice Number #INVOICE_ID</small>
+                  </div>
+                  <span class="text-muted">$PRICE</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between bg-light">
+                  <div class="text-success">
+                    <h6 class="my-0">Taxes & Fees</h6>
+                    <small>State and local taxes and fees</small>
+                  </div>
+                  <span class="text-success">$TAX</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                  <span>Total (USD)</span>
+                  <strong>$TOTAL</strong>
+                </li>
+              </ul>
+            </div>
             <div class="col-md-7 col-lg-8">
               <h4 class="mb-3">Billing address</h4>
               <!-- Putting the empty container you plan to pass to
                 `braintree.dropin.create` inside a form will make layout and flow
                 easier to manage -->
                 </form>
-                <form class="needs-validation" novalidate name="payment-form" id="payment-form" action="/post_donation" method="post">
 
+
+                <form class="needs-validation" novalidate name="payment-form" id="payment-form" action="/process_invoice" method="post">
                   <div class="row g-3">
-                      <label for="amount" class="form-label">Amount To Donate</label>
-                    <div class="input-group mb-3">
-                      <div class="input-group-prepend">
-                        <span class="input-group-text">$</span>
-                      </div>
-                      <input type="text" class="form-control" aria-label="Amount (to the nearest dollar)" name="amount" id="amount" placeholder="" value="" required>
-                      <div class="input-group-append">
-                        <span class="input-group-text">.00</span>
-                      </div>
+
+                    <div class="col-12">
+                      <label for="company_name" class="form-label">Company Name <span class="text-muted">(Optional)</span></label>
+                      <input type="text" class="form-control" name="company_name" id="company_name">
                     </div>
 
-
-                  <div class="row g-3">
                     <div class="col-sm-6">
                       <label for="firstName" class="form-label">First name</label>
                       <input type="text" class="form-control" name="first_name" id="first_name" placeholder="" value="" required>
@@ -184,8 +203,11 @@
 
                   <hr class="my-4">
                   <div id="dropin-container"></div>
-                  <input type="hidden" id="course_type" name="course_type" value="FORMNAME"/>
+                  <input type="hidden" id="invoice_id" name="invoice_id" value="INVOICE_ID"/>
 
+                  <hr class="my-4">
+                  <div id="dropin-container"></div>
+                  <input type="hidden" id="price" name="price" value="TOTAL"/>
 
                   <!--<div class="form-check">-->
                   <!--<input type="checkbox" class="form-check-input" name="same-address" id="same-address" checked="true">-->
@@ -227,7 +249,7 @@
                                                             });
                   </script>
 
-                  <button class="w-100 btn btn-success btn-lg" type="submit">Donate to SBHX Fundraiser NAME</button>
+                  <button class="w-100 btn btn-success btn-lg" type="submit">Submit Payment for Invoice #INVOICE_ID</button>
                 </form>
             </div>
           </div>

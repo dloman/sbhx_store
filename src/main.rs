@@ -19,6 +19,7 @@ pub struct Payment {
     pub city : String,
     pub state : String,
     pub payment_method_nonce : String,
+    pub company_name : Option<String>,
 }
 
 #[derive(Deserialize,Debug, Serialize)]
@@ -60,32 +61,36 @@ pub struct Fundraiser {
 }
 
 #[derive(Deserialize,Debug, Serialize)]
-pub struct Quote {
+pub struct Invoice {
     pub price : f32,
     pub invoice_id : String,
-    pub company_name : String,
-    pub date : String,
+    pub due_date : Option<String>,
+    pub disable_sales_tax : Option<bool>,
+    pub fees : Option<f32>,
+    #[serde(flatten)]
+    payment : Payment,
 }
 
 enum PaymentType {
     CourseSignup,
-    Donation
+    Donation,
+    Invoice
 }
 
 impl PaymentType {
     fn as_str(&self) -> &'static str {
          match self {
-            //PaymentType::Quote => "Quote",
             PaymentType::CourseSignup => "Course Signup",
-            PaymentType::Donation => "Donation"
+            PaymentType::Donation => "Donation",
+            PaymentType::Invoice => "Invoice"
         }
     }
 
     fn get_url(&self) -> &'static str {
          match self {
-            //PaymentType::Quote => "Quote",
             PaymentType::CourseSignup => "https://store.sbhackerspace.com",
             PaymentType::Donation => "https://donate.sbhackerspace.com",
+            PaymentType::Invoice => "https://invoice.sbhackerspace.com",
         }
     }
 }
@@ -197,6 +202,7 @@ fn process_payment(payment : &Payment, price: f32, braintree : web::Data<Mutex<B
         email: Some(payment.email.to_string()),
         first_name: Some(payment.first_name.to_string()),
         last_name: Some(payment.last_name.to_string()),
+        company: payment.company_name.clone(),
         payment_method_nonce: Some(payment.payment_method_nonce.to_string()),
         credit_card: Some(CreditCard{
             billing_address: Some(Address{
@@ -264,6 +270,29 @@ pub async fn process_donation(
     }
 
     thanks(PaymentType::Donation).await
+}
+
+//----------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
+pub async fn process_invoice(
+    invoice : web::Form<Invoice>,
+    braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
+
+    let result = process_payment(
+        &invoice.payment,
+        invoice.price,
+        braintree,
+        PaymentType::Invoice,
+        &format!("Invoice ID #{}", invoice.invoice_id).to_string());
+
+    if result.is_err() {
+        error!("Error: payment process {:?}\n", result);
+        return error(PaymentType::Invoice).await;
+    }
+
+    info!("invoice number {} payment processed for ${}\n", invoice.invoice_id, invoice.price);
+
+    thanks(PaymentType::Invoice).await
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -391,18 +420,23 @@ pub async fn fundraiser_page(braintree : web::Data<Mutex<Braintree>>, fundraiser
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn quote(braintree : web::Data<Mutex<Braintree>>, quote : web::Query<Quote>) -> HttpResponse {
+pub async fn invoice(braintree : web::Data<Mutex<Braintree>>, invoice : web::Query<Invoice>) -> HttpResponse {
     let braintree = braintree.lock().unwrap();
+
+    let tax = if invoice.disable_sales_tax.unwrap_or(false) { 0.0 } else { 0.0875 };
+
+    let tax = (invoice.price * tax) + invoice.fees.unwrap_or(0.0);
+
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(include_str!("../static/quote.html")
-              .replace("PRICE", &format!("{:.2}", quote.price).to_string())
-              .replace("INVOICE_ID", &quote.invoice_id)
-              .replace("COMPANY_NAME", &quote.company_name)
-              .replace("DATE", &quote.date)
-              .replace(
-                  "CLIENT_TOKEN_FROM_SERVER",
-                  braintree.client_token().generate(Default::default()).expect("unable to get client token").value.as_str()))
+        .body(include_str!("../static/invoice.html")
+            .replace("PRICE", &format!("{:.2}", invoice.price).to_string())
+            .replace("INVOICE_ID", &invoice.invoice_id)
+            .replace(
+                "CLIENT_TOKEN_FROM_SERVER",
+                braintree.client_token().generate(Default::default()).expect("unable to get client token").value.as_str())
+            .replace("TOTAL", &format!("{:.2}", tax+invoice.price).to_string())
+            .replace("TAX", &format!("{:.2}", tax).to_string()))
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -456,8 +490,9 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(store))
             .route("/store", web::get().to(store))
             .route("/process_donation", web::post().to(process_donation))
+            .route("/process_invoice", web::post().to(process_invoice))
             .route("/signup", web::post().to(course_signup))
-            .route("/quote", web::get().to(quote))
+            .route("/invoice", web::get().to(invoice))
             .route("/fundraise", web::get().to(fundraisers))
             .route("/donate", web::get().to(fundraisers))
             .route("/", web::post().to(submit));
