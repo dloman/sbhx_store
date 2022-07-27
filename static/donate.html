@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <div class="container py-3">
+    <head>
+      <link rel = "icon" href ='../assets/favicon.ico' type = "image/x-icon">
+      <div class="d-flex flex-column flex-md-row align-items-center pb-3 mb-4 border-bottom">
+        <a href="/" class="d-flex align-items-center text-dark text-decoration-none">
+          <img class="d-block mx-auto mb-8" src="../assets/images/sbhx.png">
+          <span class="fs-4">NAME Donation</span>
+        </a>
+      </div>
+      <meta charset="utf-8">
+      <link rel='shortcut icon' type='image/x-icon' href='../assets/favicon.ico' />
+      <!-- Bootstrap core CSS -->
+      <link href="../assets/css/bootstrap.min.css" rel="stylesheet">
+
+      <script src="https://js.braintreegateway.com/web/dropin/1.32.0/js/dropin.min.js"></script>
+      <style>
+.bd-placeholder-img {
+  font-size: 1.125rem;
+  text-anchor: middle;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+              @media (min-width: 768px) {
+                .bd-placeholder-img-lg {
+                  font-size: 3.5rem;
+                }
+              }
+      </style>
+      <!-- Custom styles for this template -->
+      <link href="../assets/css/form-validation.css" rel="stylesheet">
+    </head>
+    <body>
+      <div class="container">
+        <main>
+          <div class="py-5 text-center">
+            <img class="d-block mx-auto mb-4" src="../assets/images/sbhx.png" alt="">
+            <h2>Donation to NAME</h2>
+            <p class="lead">Please enter required information to donate to the SBHX fundraiser for DESCRIPTION.</p>
+          </div>
+
+          <div class="row g-5">
+            <div class="col-md-7 col-lg-8">
+              <h4 class="mb-3">Billing address</h4>
+              <!-- Putting the empty container you plan to pass to
+                `braintree.dropin.create` inside a form will make layout and flow
+                easier to manage -->
+                </form>
+                <form class="needs-validation" novalidate name="payment-form" id="payment-form" action="/process_donation" method="post">
+
+                  <div class="row g-3">
+                      <label for="amount" class="form-label">Amount To Donate</label>
+                    <div class="input-group mb-3">
+                      <div class="input-group-prepend">
+                        <span class="input-group-text">$</span>
+                      </div>
+                      <input type="text" class="form-control" aria-label="Amount (to the nearest dollar)" name="amount" id="amount" placeholder="" value="" required>
+                      <div class="input-group-append">
+                        <span class="input-group-text">.00</span>
+                      </div>
+                    </div>
+
+
+                  <div class="row g-3">
+                    <div class="col-sm-6">
+                      <label for="firstName" class="form-label">First name</label>
+                      <input type="text" class="form-control" name="first_name" id="first_name" placeholder="" value="" required>
+                      <div class="invalid-feedback">
+                        Valid first name is required.
+                      </div>
+                    </div>
+
+                    <div class="col-sm-6">
+                      <label for="lastName" class="form-label">Last name</label>
+                      <input type="text" class="form-control" name="last_name" id="last_name" placeholder="" value="" required>
+                      <div class="invalid-feedback">
+                        Valid last name is required.
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <label for="email" class="form-label">Email <span class="text-muted"></span></label>
+                      <input type="email" class="form-control" name="email" id="email" placeholder="you@example.com" required>
+                      <div class="invalid-feedback">
+                        Please enter a valid email address.
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <label for="address" class="form-label">Address</label>
+                      <input type="text" class="form-control" name="address" id="address" placeholder="1234 Main St" required>
+                      <div class="invalid-feedback">
+                        Please enter your billing address.
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <label for="address2" class="form-label">Address 2 <span class="text-muted">(Optional)</span></label>
+                      <input type="text" class="form-control" name="address2" id="address2" placeholder="Apartment or suite">
+                    </div>
+
+                    <div class="col-md-5">
+                      <label for="city" class="form-label">City</label>
+                      <input type="text" class="form-control" name="city" id="city" placeholder="Billing City" required>
+                      <div class="invalid-feedback">
+                        Please enter City.
+                      </div>
+                    </div>
+
+                    <div class="col-md-4">
+                      <label for="state" class="form-label">State</label>
+                      <select class="form-select" name="state" id="state" required>
+                        <option value="">Choose...</option>
+			<option value="AL">Alabama</option>
+			<option value="AK">Alaska</option>
+			<option value="AZ">Arizona</option>
+			<option value="AR">Arkansas</option>
+			<option value="CA">California</option>
+			<option value="CO">Colorado</option>
+			<option value="CT">Connecticut</option>
+			<option value="DE">Delaware</option>
+			<option value="DC">District Of Columbia</option>
+			<option value="FL">Florida</option>
+			<option value="GA">Georgia</option>
+			<option value="HI">Hawaii</option>
+			<option value="ID">Idaho</option>
+			<option value="IL">Illinois</option>
+			<option value="IN">Indiana</option>
+			<option value="IA">Iowa</option>
+			<option value="KS">Kansas</option>
+			<option value="KY">Kentucky</option>
+			<option value="LA">Louisiana</option>
+			<option value="ME">Maine</option>
+			<option value="MD">Maryland</option>
+			<option value="MA">Massachusetts</option>
+			<option value="MI">Michigan</option>
+			<option value="MN">Minnesota</option>
+			<option value="MS">Mississippi</option>
+			<option value="MO">Missouri</option>
+			<option value="MT">Montana</option>
+			<option value="NE">Nebraska</option>
+			<option value="NV">Nevada</option>
+			<option value="NH">New Hampshire</option>
+			<option value="NJ">New Jersey</option>
+			<option value="NM">New Mexico</option>
+			<option value="NY">New York</option>
+			<option value="NC">North Carolina</option>
+			<option value="ND">North Dakota</option>
+			<option value="OH">Ohio</option>
+			<option value="OK">Oklahoma</option>
+			<option value="OR">Oregon</option>
+			<option value="PA">Pennsylvania</option>
+			<option value="RI">Rhode Island</option>
+			<option value="SC">South Carolina</option>
+			<option value="SD">South Dakota</option>
+			<option value="TN">Tennessee</option>
+			<option value="TX">Texas</option>
+			<option value="UT">Utah</option>
+			<option value="VT">Vermont</option>
+			<option value="VA">Virginia</option>
+			<option value="WA">Washington</option>
+			<option value="WV">West Virginia</option>
+			<option value="WI">Wisconsin</option>
+			<option value="WY">Wyoming</option>
+			<option value="AS">American Samoa</option>
+			<option value="GU">Guam</option>
+			<option value="MP">Northern Mariana Islands</option>
+			<option value="PR">Puerto Rico</option>
+			<option value="UM">United States Minor Outlying Islands</option>
+			<option value="VI">Virgin Islands</option>
+			<option value="AA">Armed Forces Americas</option>
+			<option value="AP">Armed Forces Pacific</option>
+			<option value="AE">Armed Forces Others</option>
+                      </select>
+                      <div class="invalid-feedback">
+                        Please provide a valid state.
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <hr class="my-4">
+                  <div id="dropin-container"></div>
+                  <input type="hidden" id="fundraiser_name" name="fundraiser_name" value="FORMNAME"/>
+
+
+                  <!--<div class="form-check">-->
+                  <!--<input type="checkbox" class="form-check-input" name="same-address" id="same-address" checked="true">-->
+                  <!--<label class="form-check-label" for="same-address">Shipping address is the same as my billing address</label>-->
+                  <!--</div>-->
+
+                  <hr class="my-4">
+
+                  <h4 class="mb-3">Payment</h4>
+
+                  <div id="dropin-container"></div>
+                  <input type="hidden" id="nonce" name="payment_method_nonce"/>
+
+                  <script type="text/javascript">
+                    braintree.dropin.create({
+                                          authorization: 'CLIENT_TOKEN_FROM_SERVER',
+                                          container: '#dropin-container'
+                                        }, (error, dropinInstance) => {
+                                                              if (error) console.error(error);
+
+                                                              const form = document.getElementById('payment-form');
+
+                                                              form.addEventListener('submit', event => {
+                                                                                    event.preventDefault();
+
+                                                                                    dropinInstance.requestPaymentMethod((error, payload) => {
+                                                                                                          if (error) console.error(error);
+
+                                                                                                          // Step four: when the user is ready to complete their
+                                                                                                          //   transaction, use the dropinInstance to get a payment
+                                                                                                          //   method nonce for the user's selected payment method, then add
+                                                                                                          //   it a the hidden field before submitting the complete form to
+                                                                                                          //   a server-side integration
+                                                                                                          document.getElementById('nonce').value = payload.nonce;
+                                                                                                          var form = document.getElementById('payment-form');
+                                                                                                          form.submit();
+                                                                                                        });
+                                                                                  });
+                                                            });
+                  </script>
+
+                  <button class="w-100 btn btn-success btn-lg" type="submit">Donate to SBHX Fundraiser NAME</button>
+                </form>
+            </div>
+          </div>
+        </main>
+
+        <footer class="my-5 pt-5 text-muted text-center text-small">
+          <p class="mb-1">&copy; 2011–2022 Santa Barbara Hackerspace</p>
+          <ul class="list-inline">
+            <li class="list-inline-item"><a href="#">Privacy</a></li>
+            <li class="list-inline-item"><a href="#">Terms</a></li>
+            <li class="list-inline-item"><a href="#">Support</a></li>
+          </ul>
+        </footer>
+      </div>
+  </div>
+
+
+  <script src="../assets/js/bootstrap.bundle.min.js"></script>
+
+  <script src="../assets/js/form-validation.js"></script>
+    </body>
+</html>
