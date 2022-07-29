@@ -39,7 +39,7 @@ pub struct Donation
     payment : Payment,
 }
 
-#[derive(Deserialize,Debug, Serialize, Clone, Default)]
+#[derive(Deserialize,Debug, Serialize)]
 pub struct Item {
     pub number_of_items : Option<i32>,
     pub price : f32,
@@ -50,7 +50,7 @@ pub struct Item {
     pub dates : String,
 }
 
-#[derive(Deserialize,Debug, Serialize, Clone, Default)]
+#[derive(Deserialize,Debug, Serialize)]
 pub struct Fundraiser {
     pub name : String,
     pub goal : f32,
@@ -245,29 +245,36 @@ fn process_payment(payment : &Payment, price: f32, braintree : web::Data<Mutex<B
 //----------------------------------------------------------------------------------------------------
 pub async fn process_donation(
     donation : web::Form<Donation>,
-    fundraisers : web::Data<Mutex<BTreeMap<String, Fundraiser>>>,
     braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
 
-    let mut fundraisers = fundraisers.lock().unwrap();
+    let mut fundraisers = get_file::<BTreeMap<String, Fundraiser>>("fundraising_goals.json".to_string());
 
+    debug!("fundraisers = {:#?}\n", fundraisers);
     let result = process_payment(&donation.payment, donation.amount, braintree, PaymentType::Donation, &donation.fundraiser_name);
 
     if result.is_err() {
-        error!("Error: payment process {:?}\n", result);
+        error!("Error: payment process {:#?}\n", result);
         return error(PaymentType::Donation).await;
     }
 
     info!("donation of {} processed for {}\n",donation.amount, donation.fundraiser_name);
 
     match fundraisers.get_mut(&donation.fundraiser_name) {
-        Some(fundraiser) => {
+        Some(ref mut fundraiser) => {
             fundraiser.amount_raised += donation.amount;
+            info!("amount_raised = {:#?}\n", fundraiser.amount_raised);
         },
         None => {
             error!("Error: unknown fundraiser name {}\n", donation.fundraiser_name);
             return error(PaymentType::Donation).await;
         },
     }
+
+    debug!("fundraisers = {:?}\n", fundraisers);
+
+    serde_json::to_writer(
+        &File::create("fundraising_goals.json").expect("unable to open file"),
+        &fundraisers).expect("unable to write fundraising_goals.json");
 
     thanks(PaymentType::Donation).await
 }
@@ -299,11 +306,10 @@ pub async fn process_invoice(
 //----------------------------------------------------------------------------------------------------
 pub async fn course_signup(
     signup : web::Form<CourseSignup>,
-    inventory : web::Data<Mutex<BTreeMap<String, Item>>>,
     braintree : web::Data<Mutex<Braintree>>) -> HttpResponse {
     debug!("course signup request = {:#?}\n", signup);
 
-    let mut inventory = inventory.lock().unwrap();
+    let mut inventory = get_file::<BTreeMap<String, Item>>("inventory.json".to_string());
 
     let item = inventory.get(&signup.course_type);
 
@@ -332,7 +338,7 @@ pub async fn course_signup(
     }
 
     match inventory.get_mut(&signup.course_type) {
-        Some(item) => {
+        Some(ref mut item) => {
             match &mut item.number_of_items {
                 Some(number_of_items) => *number_of_items -= 1,
                 None => (),
@@ -347,19 +353,20 @@ pub async fn course_signup(
     info!("inventory after course signup {:#?}\n", inventory);
     serde_json::to_writer(
         &File::create("inventory.json").expect("unable to open file"),
-        &*inventory).expect("unable to write inventory.json");
+        &inventory).expect("unable to write inventory.json");
 
     thanks(PaymentType::CourseSignup).await
 }
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn fundraisers(fundraising_goals : web::Data<Mutex<BTreeMap<String, Fundraiser>>>)-> HttpResponse {
+pub async fn fundraisers_page()-> HttpResponse {
     let web_page = include_str!("../static/fundraise.html");
-    let fundraising_goals = fundraising_goals.lock().unwrap();
+    let fundraisers = get_file::<BTreeMap<String, Fundraiser>>("fundraising_goals.json".to_string());
+    info!("fundraisers = {:?}\n", fundraisers);
 
     let mut content = String::new();
-    for (_, fundraiser) in fundraising_goals.iter() {
+    for (_, fundraiser) in fundraisers.iter() {
         content += fundraiser.get_entry().as_str();
     }
     let web_page = web_page.replace("FUNDRAISERS", &content);
@@ -369,9 +376,9 @@ pub async fn fundraisers(fundraising_goals : web::Data<Mutex<BTreeMap<String, Fu
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn store(inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> HttpResponse {
+pub async fn store() -> HttpResponse {
     let store = include_str!("../static/store.html");
-    let inventory = inventory.lock().unwrap();
+    let inventory = get_file::<BTreeMap<String, Item>>("inventory.json".to_string());
     info!("inventory in store {:#?}\n", inventory);
     let mut items = String::new();
     for (_key, item) in inventory.iter() {
@@ -385,8 +392,8 @@ pub async fn store(inventory : web::Data<Mutex<BTreeMap<String, Item>>>) -> Http
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, inventory : web::Data<Mutex<BTreeMap<String, Item>>>, formname : String) -> HttpResponse {
-    let inventory = inventory.lock().unwrap();
+pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, formname : String) -> HttpResponse {
+    let inventory = get_file::<BTreeMap<String, Item>>("inventory.json".to_string());
     let item = inventory.get(&formname).unwrap();
     let braintree = braintree.lock().unwrap();
 
@@ -404,10 +411,12 @@ pub async fn item_page(braintree : web::Data<Mutex<Braintree>>, inventory : web:
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub async fn fundraiser_page(braintree : web::Data<Mutex<Braintree>>, fundraisers : web::Data<Mutex<BTreeMap<String, Fundraiser>>>, name : String) -> HttpResponse {
-    let fundraisers = fundraisers.lock().unwrap();
+pub async fn fundraiser_page(braintree : web::Data<Mutex<Braintree>>, name : String) -> HttpResponse {
+    let fundraisers = get_file::<BTreeMap<String, Fundraiser>>("fundraising_goals.json".to_string());
     let fundraiser = fundraisers.get(&name).unwrap();
     let braintree = braintree.lock().unwrap();
+
+    info!("{} amount_raised = {}\n", name, fundraiser.amount_raised);
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(include_str!("../static/donate.html")
@@ -447,12 +456,12 @@ pub async fn submit(json : web::Json<serde_json::Value>) -> HttpResponse {
 
 //----------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------
-pub fn get_file<T: serde::de::DeserializeOwned>(file_name: String) -> web::Data<Mutex<T>>
+pub fn get_file<T: serde::de::DeserializeOwned>(file_name: String) -> T
 {
     let file = File::open(&file_name).expect(format!("unable to open {:}", &file_name.as_str()).as_str());
     let reader = BufReader::new(file);
     let data :T = serde_json::from_reader(reader).expect("failure reading inventory.json");
-    web::Data::new(Mutex::new(data))
+    data
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -476,16 +485,14 @@ async fn main() -> std::io::Result<()> {
 
         let inventory = get_file::<BTreeMap<String, Item>>("inventory.json".to_string());
 
-        let item_names :Vec<String> = inventory.lock().unwrap().keys().map(|x| String::clone(x)).collect();
+        let item_names :Vec<String> = inventory.keys().map(|x| String::clone(x)).collect();
 
-        let fundraising_goals = get_file::<BTreeMap<String, Fundraiser>>("fundraising_goals.json".to_string());
+        let fundraisers = get_file::<BTreeMap<String, Fundraiser>>("fundraising_goals.json".to_string());
 
-        let fundraiser_names : Vec<String> = fundraising_goals.lock().unwrap().keys().map(|x| String::clone(x)).collect();
+        let fundraiser_names : Vec<String> = fundraisers.keys().map(|x| String::clone(x)).collect();
 
         let mut app = App::new()
             .app_data(braintree)
-            .app_data(inventory.clone())
-            .app_data(fundraising_goals.clone())
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
             .route("/", web::get().to(store))
             .route("/store", web::get().to(store))
@@ -493,18 +500,18 @@ async fn main() -> std::io::Result<()> {
             .route("/process_invoice", web::post().to(process_invoice))
             .route("/signup", web::post().to(course_signup))
             .route("/invoice", web::get().to(invoice))
-            .route("/fundraise", web::get().to(fundraisers))
-            .route("/donate", web::get().to(fundraisers))
+            .route("/fundraise", web::get().to(fundraisers_page))
+            .route("/donate", web::get().to(fundraisers_page))
             .route("/", web::post().to(submit));
 
         for fundraiser_name in fundraiser_names.into_iter() {
             app = app.route(format!("/{}", fundraiser_name).as_str(), web::get().to(
-                    move |braintree, fundraisers| fundraiser_page(braintree, fundraisers, fundraiser_name.clone())));
+                    move |braintree| fundraiser_page(braintree, fundraiser_name.clone())));
         }
 
         for item_name in item_names.into_iter() {
             app = app.route(format!("/{}", item_name).as_str(), web::get().to(
-                    move |braintree, current_inventory| item_page(braintree, current_inventory, item_name.clone())));
+                    move |braintree| item_page(braintree, item_name.clone())));
         }
         app
     })
