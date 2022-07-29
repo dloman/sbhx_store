@@ -422,6 +422,7 @@ pub async fn fundraiser_page(braintree : web::Data<Mutex<Braintree>>, name : Str
         .body(include_str!("../static/donate.html")
               .replace("FORMNAME", &fundraiser.formname)
               .replace("NAME", &fundraiser.name)
+              .replace("DESCRIPTION", &fundraiser.description)
               .replace(
                   "CLIENT_TOKEN_FROM_SERVER",
                   braintree.client_token().generate(Default::default()).expect("unable to get client token").value.as_str()))
