@@ -1,4 +1,5 @@
 use actix_web::{web, App, HttpServer};
+use actix_web::middleware::Logger;
 use braintree::{Braintree, Environment};
 use log::{info};
 use std::collections::BTreeMap;
@@ -36,6 +37,7 @@ async fn main() -> std::io::Result<()> {
         let fundraiser_names : Vec<String> = fundraisers.keys().map(|x| String::clone(x)).collect();
 
         let mut app = App::new()
+            .wrap(Logger::new("%r %{User-Agent}i"))
             .app_data(braintree)
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
             .route("/store", web::get().to(store::store))
