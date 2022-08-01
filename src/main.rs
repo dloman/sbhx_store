@@ -37,16 +37,18 @@ async fn main() -> std::io::Result<()> {
         let fundraiser_names : Vec<String> = fundraisers.keys().map(|x| String::clone(x)).collect();
 
         let mut app = App::new()
-            .wrap(Logger::new("%r %{User-Agent}i"))
+            .wrap(Logger::new("%a \"%r\" %s %b \"%{Referer}i\" \"%{User-Agent}i\" %T"))
             .app_data(braintree)
             .service(actix_files::Files::new("/assets", "assets").show_files_listing())
-            .route("/store", web::get().to(store::store))
+            .service(actix_files::Files::new("/donate/assets", "assets").show_files_listing())
+            .service(actix_files::Files::new("/store/assets", "assets").show_files_listing())
+            .route("/store/", web::get().to(store::store))
             .route("/store/signup", web::post().to(store::course_signup))
             .route("/quote/process_invoice", web::post().to(quote::process_invoice))
             .route("/quote/invoice", web::get().to(quote::invoice))
             .route("/donate/process_donation", web::post().to(fundraise::process_donation))
             .route("/donate/fundraise", web::get().to(fundraise::fundraisers_page))
-            .route("/donate", web::get().to(fundraise::fundraisers_page));
+            .route("/donate/", web::get().to(fundraise::fundraisers_page));
 
         for fundraiser_name in fundraiser_names.into_iter() {
             app = app.route(format!("/donate/{}", fundraiser_name).as_str(), web::get().to(
