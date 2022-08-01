@@ -113,7 +113,7 @@ pub async fn course_signup(
     }
 
     info!("inventory after course signup {:#?}\n", inventory);
-    serde_json::to_writer(
+    serde_json::to_writer_pretty(
         &File::create("inventory.json").expect("unable to open file"),
         &inventory).expect("unable to write inventory.json");
 

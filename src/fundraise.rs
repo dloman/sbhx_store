@@ -95,7 +95,7 @@ pub async fn process_donation(
 
     debug!("fundraisers = {:?}\n", fundraisers);
 
-    serde_json::to_writer(
+    serde_json::to_writer_pretty(
         &File::create("fundraising_goals.json").expect("unable to open file"),
         &fundraisers).expect("unable to write fundraising_goals.json");
 
